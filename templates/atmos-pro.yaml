@@ -1,0 +1,243 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Cloud Posse Atmos Pro - Complete Infrastructure (GitHub Actions Role + Terraform Backend)'
+
+Parameters:
+  StackName:
+    Type: String
+    Description: (Required) Name of the stack (used as prefix for all resources). This must be globally unique
+
+  GitHubOrg:
+    Type: String
+    Description: GitHub organization or username
+    Default: cloudposse
+  
+  GitHubRepo:
+    Type: String
+    Description: GitHub repository name
+    Default: demo
+
+  BucketName:
+    Type: String
+    Description: Name of the S3 bucket for Terraform state
+    Default: tfstate
+  
+  KmsKeyAliasName:
+    Type: String
+    Description: Alias for the KMS key used for encryption
+    Default: tfstate
+
+  DynamoDBTableName:
+    Type: String
+    Description: Name of the DynamoDB table for state locking (leave empty to skip creation)
+    Default: ''
+
+  GitHubRoleName:
+    Type: String
+    Description: Name of the IAM role for GitHub Actions
+    Default: github-actions
+
+  CreateOIDCProvider:
+    Type: String
+    Description: Set to 'true' to create the GitHub OIDC provider, 'false' to skip (if it already exists)
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+Conditions:
+  CreateDynamoDB: !Not [!Equals [!Ref DynamoDBTableName, '']]
+  ShouldCreateOIDCProvider: !Equals [!Ref CreateOIDCProvider, 'true']
+
+Resources:
+  # ============================================================================
+  # TERRAFORM BACKEND RESOURCES
+  # ============================================================================
+  
+  TerraformStateBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${StackName}-${BucketName}'
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !GetAtt KmsKey.Arn
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 90
+
+  KmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: !Sub 'KMS key for ${StackName} Terraform state encryption'
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow S3 to use the key
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: '*'
+
+  KmsKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub 'alias/${StackName}-${KmsKeyAliasName}'
+      TargetKeyId: !Ref KmsKey
+
+  TerraformStateBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref TerraformStateBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnforceTLS
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: 
+              - !Sub 'arn:aws:s3:::${TerraformStateBucket}'
+              - !Sub 'arn:aws:s3:::${TerraformStateBucket}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+          - Sid: DenyIncorrectEncryptionHeader
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:PutObject'
+            Resource: !Sub 'arn:aws:s3:::${TerraformStateBucket}/*'
+            Condition:
+              StringNotEquals:
+                's3:x-amz-server-side-encryption': 'aws:kms'
+          - Sid: DenyUnEncryptedObjectUploads
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:PutObject'
+            Resource: !Sub 'arn:aws:s3:::${TerraformStateBucket}/*'
+            Condition:
+              Bool:
+                's3:x-amz-server-side-encryption': false
+
+  DynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Condition: CreateDynamoDB
+    Properties:
+      TableName: !Sub '${StackName}-${DynamoDBTableName}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: LockID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: LockID
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !GetAtt KmsKey.Arn
+
+  # ============================================================================
+  # GITHUB ACTIONS RESOURCES
+  # ============================================================================
+
+  GitHubOIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: ShouldCreateOIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: 
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+
+  GitHubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${StackName}-${GitHubRoleName}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringLike:
+                'token.actions.githubusercontent.com:sub': !Sub 'repo:${GitHubOrg}/${GitHubRepo}:*'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+
+Outputs:
+  StackName:
+    Description: Name of the stack
+    Value: !Ref StackName
+
+  # Terraform Backend Outputs
+  StateBucketName:
+    Description: Name of the S3 bucket for Terraform state
+    Value: !Ref TerraformStateBucket
+
+  StateBucketARN:
+    Description: ARN of the S3 bucket for Terraform state
+    Value: !GetAtt TerraformStateBucket.Arn
+
+  KmsKeyARN:
+    Description: ARN of the KMS key used for encryption
+    Value: !GetAtt KmsKey.Arn
+
+  KmsKeyAlias:
+    Description: Alias of the KMS key
+    Value: !Sub 'alias/${StackName}-${KmsKeyAliasName}'
+
+  DynamoDBTableName:
+    Description: Name of the DynamoDB table for state locking
+    Value: !If 
+      - CreateDynamoDB
+      - !Sub '${StackName}-${DynamoDBTableName}'
+      - ''
+
+  DynamoDBTableARN:
+    Description: ARN of the DynamoDB table for state locking
+    Value: !If 
+      - CreateDynamoDB
+      - !GetAtt DynamoDBTable.Arn
+      - ''
+
+  # GitHub Actions Outputs
+  GitHubActionsRoleARN:
+    Description: ARN of the IAM role for GitHub Actions
+    Value: !GetAtt GitHubActionsRole.Arn
+
+  GitHubActionsRoleName:
+    Description: Name of the IAM role for GitHub Actions
+    Value: !Sub '${StackName}-${GitHubRoleName}'
+
+  GitHubOIDCProviderARN:
+    Description: ARN of the GitHub OIDC provider
+    Value: !If 
+      - ShouldCreateOIDCProvider
+      - !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
+      - !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com' 

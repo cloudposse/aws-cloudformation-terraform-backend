@@ -1,0 +1,10 @@
+docs:
+  generate:
+    readme:
+      base-dir: .
+      template: ".github/README.md.gotmpl"
+      output: ".github/README.md"
+      terraform:
+        enabled: false
+      input:
+        - "README.yaml"
