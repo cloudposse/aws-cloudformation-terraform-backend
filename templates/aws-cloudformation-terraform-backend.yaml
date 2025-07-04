@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Cloud Posse Atmos Pro - Complete Infrastructure (GitHub Actions Role + Terraform Backend)'
+Description: 'Cloud Posse Terraform Backend'
 
 Parameters:
   StackName:

@@ -1,36 +1,36 @@
-name: atmos-pro-template
+name: aws-cloudformation-terraform-backend
 
 license: APACHE2
 
-github_repo: cloudposse/atmos-pro-template
+github_repo: cloudposse/aws-cloudformation-terraform-backend
 
 description: |-
-  CloudFormation template that sets up the foundation for using Atmos Pro with AWS. Creates S3 bucket for Terraform state storage, IAM roles and policies for GitHub OIDC integration, and all necessary permissions for Atmos Pro to work seamlessly.
+  CloudFormation template that sets up a complete Terraform backend infrastructure on AWS. Creates S3 bucket for Terraform state storage, IAM roles and policies for GitHub OIDC integration, KMS key for encryption, DynamoDB table for state locking, and all necessary permissions for secure Terraform operations.
 
 introduction: |-
-  This repository contains a CloudFormation template that sets up the foundation for using Atmos Pro with AWS. It creates:
+  This repository contains a CloudFormation template that sets up a complete Terraform backend infrastructure on AWS. It creates:
 
   - S3 bucket for Terraform state storage
   - IAM roles and policies for GitHub OIDC integration
   - KMS key for encryption
   - DynamoDB table for state locking
-  - All necessary permissions for Atmos Pro to work seamlessly
+  - All necessary permissions for secure Terraform operations
 
   The template deploys all resources in a single CloudFormation stack for easy management and deployment.
 
 usage: |-
   ## Quick Start
 
-  Deploy the complete Atmos Pro infrastructure in a single CloudFormation stack:
+  Deploy the complete Terraform backend infrastructure in a single CloudFormation stack:
 
-  [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=atmos-pro&templateURL=https://s3.amazonaws.com/cloudposse-atmos-pro-quickstart/atmos-pro.yaml)
+  [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=terraform-backend&templateURL=https://s3.amazonaws.com/cloudposse-terraform-backend-quickstart/terraform-backend.yaml)
 
   ### Deploy via AWS CLI
 
   ```bash
   aws cloudformation create-stack \
-    --stack-name my-project-atmos-pro \
-    --template-body file://templates/atmos-pro.yaml \
+    --stack-name tfstate-backend \
+    --template-body file://templates/aws-cloudformation-terraform-backend.yaml \
     --parameters ParameterKey=StackName,ParameterValue=my-project \
                  ParameterKey=GitHubOrg,ParameterValue=your-org \
                  ParameterKey=GitHubRepo,ParameterValue=your-repo \
@@ -39,8 +39,8 @@ usage: |-
 
   ## Template Overview
 
-  ### `atmos-pro.yaml`
-  Deploys the complete Atmos Pro infrastructure in a single CloudFormation stack.
+  ### `terraform-backend.yaml`
+  Deploys the complete Terraform backend infrastructure in a single CloudFormation stack.
 
   **Resources:**
   - S3 bucket for Terraform state storage
@@ -74,10 +74,10 @@ usage: |-
   ### Validate Template Locally
   ```bash
   # Validate template
-  aws cloudformation validate-template --template-body file://templates/atmos-pro.yaml
+  aws cloudformation validate-template --template-body file://templates/terraform-backend.yaml
 
   # Validate with cfn-lint (more comprehensive)
-  cfn-lint templates/atmos-pro.yaml
+  cfn-lint templates/terraform-backend.yaml
   ```
 
   ## Architecture
@@ -120,7 +120,7 @@ usage: |-
   1. Deploy the CloudFormation stack
   2. Configure your GitHub repository with the provided OIDC role ARN
   3. Use the S3 bucket and DynamoDB table in your Terraform backend configuration
-  4. Start using Atmos Pro with your infrastructure
+  4. Start using Terraform with your secure backend infrastructure
 
   ## Notes
 
@@ -138,7 +138,7 @@ usage: |-
   │       ├── validate-template.yml
   │       └── publish-template.yml
   ├── templates/                 # CloudFormation template
-  │   ├── atmos-pro.yaml
+  │   ├── terraform-backend.yaml
   │   └── README.md
   ├── requirements.txt           # Python dependencies
   ├── README.yaml               # This file
