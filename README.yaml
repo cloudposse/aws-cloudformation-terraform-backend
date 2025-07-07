@@ -90,7 +90,7 @@ usage: |-
   make lint
   ```
 
-  ## Building Documentation
+  ### Building Documentation
 
   To build the documentation for this repository, run:
 

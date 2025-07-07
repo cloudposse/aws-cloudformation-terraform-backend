@@ -91,7 +91,7 @@ To validate the template locally, run:
 make lint
 ```
 
-## Building Documentation
+### Building Documentation
 
 To build the documentation for this repository, run:
 
