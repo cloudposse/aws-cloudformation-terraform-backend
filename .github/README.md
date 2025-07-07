@@ -91,22 +91,6 @@ To validate the template locally, run:
 make lint
 ```
 
-## Repository Structure
-
-```
-.
-├── .github/
-│   └── workflows/             # GitHub Actions workflows
-│       ├── validate-template.yml
-│       └── publish-template.yml
-├── templates/                 # CloudFormation template
-│   ├── aws-cloudformation-terraform-backend.yaml
-│   └── README.md
-├── requirements.txt           # Python dependencies
-├── README.yaml               # This file
-└── README.md                 # Generated README
-```
-
 ## Building Documentation
 
 To build the documentation for this repository, run:
@@ -116,6 +100,24 @@ atmos docs generate readme
 ```
 
 This command generates the README.md file from the README.yaml configuration.
+
+## Repository Structure
+
+```
+.
+├── .github/
+│   ├── README.md             # Generated README
+│   ├── README.md.gotmpl      # README template
+│   └── workflows/            # GitHub Actions workflows
+│       ├── validate-template.yml # Validates the template
+│       └── publish-template.yml # Publishes the template
+├── templates/                # CloudFormation template
+│   └── aws-cloudformation-terraform-backend.yaml
+├── atmos.yaml                # Atmos configuration
+├── Makefile                  # Build and deployment commands
+├── requirements.txt          # Python dependencies
+└── README.yaml              # This file
+```
 
 
 
