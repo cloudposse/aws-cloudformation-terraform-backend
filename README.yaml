@@ -8,22 +8,45 @@ description: |-
   CloudFormation template that sets up a complete Terraform backend infrastructure on AWS. Creates S3 bucket for Terraform state storage, IAM roles and policies for GitHub OIDC integration, KMS key for encryption, DynamoDB table for state locking, and all necessary permissions for secure Terraform operations.
 
 introduction: |-
-  This repository contains a CloudFormation template that sets up a complete Terraform backend infrastructure on AWS. It creates:
+  This repository contains a CloudFormation template that sets up a complete Terraform backend infrastructure on AWS. It creates three distinct types of resources:
 
+  ## 1. State Backend Resources
+  Used for Terraform or OpenTofu state storage:
   - S3 bucket for Terraform state storage
-  - IAM roles and policies for GitHub OIDC integration
   - KMS key for encryption
   - DynamoDB table for state locking
-  - All necessary permissions for secure Terraform operations
 
-  The template deploys all resources in a single CloudFormation stack for easy management and deployment.
+  ## 2. Plan File Storage Resources
+  Used with Cloud Posse GitHub Actions to store plan files between planning and applying:
+  - S3 bucket for Terraform plan files
+  - DynamoDB table for plan metadata
+
+  ## 3. GitHub Actions Access Resources
+  Used for secure GitHub Actions integration:
+  - IAM roles and policies for GitHub OIDC integration
+  - GitHub OIDC provider for secure authentication
+
+  The template deploys all resources in a single CloudFormation stack for easy management and deployment, with options to create only the resources you need.
 
 usage: |-
   ## Quick Start
 
   Deploy the complete Terraform backend infrastructure in a single CloudFormation stack:
 
-  [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=terraform-backend&templateURL=https://s3.amazonaws.com/cloudposse-terraform-backend-quickstart/terraform-backend.yaml)
+  [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=terraform-backend&templateURL=https://s3.amazonaws.com/cloudposse-terraform-backend-quickstart/aws-cloudformation-terraform-backend.yaml)
+
+  ### Basic Example - Create Everything
+
+  ```bash
+  aws cloudformation create-stack \
+    --stack-name my-backend \
+    --template-body file://templates/aws-cloudformation-terraform-backend.yaml \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --parameters \
+      ParameterKey=StackName,ParameterValue=my-backend \
+      ParameterKey=GitHubOrg,ParameterValue=your-org \
+      ParameterKey=GitHubRepo,ParameterValue=your-repo
+  ```
 
   ### Deploy via AWS CLI
 
@@ -31,32 +54,45 @@ usage: |-
   aws cloudformation create-stack \
     --stack-name tfstate-backend \
     --template-body file://templates/aws-cloudformation-terraform-backend.yaml \
-    --parameters ParameterKey=StackName,ParameterValue=my-project \
-                 ParameterKey=GitHubOrg,ParameterValue=your-org \
-                 ParameterKey=GitHubRepo,ParameterValue=your-repo \
-                 ParameterKey=DynamoDBTableName,ParameterValue=tfstate-locks
+    --capabilities CAPABILITY_NAMED_IAM \
+    --parameters \
+      ParameterKey=StackName,ParameterValue=my-project \
+      ParameterKey=GitHubOrg,ParameterValue=your-org \
+      ParameterKey=GitHubRepo,ParameterValue=your-repo
   ```
 
   ## Template Overview
 
-  ### `terraform-backend.yaml`
+  ### `aws-cloudformation-terraform-backend.yaml`
   Deploys the complete Terraform backend infrastructure in a single CloudFormation stack.
 
-  **Resources:**
+  **State Backend Resources:**
   - S3 bucket for Terraform state storage
   - KMS key for encryption
-  - DynamoDB table for state locking (optional)
-  - GitHub OIDC Provider (optional)
-  - GitHub Actions IAM Role with AdministratorAccess policy
+  - DynamoDB table for state locking
   - S3 bucket policy with security configurations
+
+  **Plan File Storage Resources:**
+  - S3 bucket for Terraform plan files
+  - DynamoDB table for plan metadata
+  - S3 bucket policy with security configurations
+
+  **GitHub Actions Access Resources:**
+  - GitHub OIDC Provider
+  - GitHub Actions IAM Role with AdministratorAccess policy
 
   **Parameters:**
   - `StackName` (required): Name prefix for all resources
+  - `CreateStateBackend`: Whether to create state backend resources (default: true)
+  - `CreatePlanFileStorage`: Whether to create plan file storage resources (default: true)
+  - `CreateGitHubAccess`: Whether to create GitHub access resources (default: true)
   - `GitHubOrg`: GitHub organization or username (default: cloudposse)
-  - `GitHubRepo`: GitHub repository name (default: demo)
-  - `BucketName`: S3 bucket name (default: tfstate)
+  - `GitHubRepo`: GitHub repository name (default: "*")
+  - `BucketName`: S3 bucket name for state storage (default: tfstate)
+  - `DynamoDBTableName`: DynamoDB table name for state locking (default: tfstate)
   - `KmsKeyAliasName`: KMS key alias (default: tfstate)
-  - `DynamoDBTableName`: DynamoDB table name (default: empty - skips creation)
+  - `PlanBucketName`: S3 bucket name for plan files (default: tfplan)
+  - `PlanDynamoDBTableName`: DynamoDB table name for plan metadata (default: tfplan)
   - `GitHubRoleName`: IAM role name (default: github-actions)
   - `CreateOIDCProvider`: Whether to create OIDC provider (default: true)
 
@@ -74,10 +110,10 @@ usage: |-
   ### Validate Template Locally
   ```bash
   # Validate template
-  aws cloudformation validate-template --template-body file://templates/terraform-backend.yaml
+  aws cloudformation validate-template --template-body file://templates/aws-cloudformation-terraform-backend.yaml
 
   # Validate with cfn-lint (more comprehensive)
-  cfn-lint templates/terraform-backend.yaml
+  cfn-lint templates/aws-cloudformation-terraform-backend.yaml
   ```
 
   ## Architecture
@@ -86,7 +122,7 @@ usage: |-
 
   1. **S3 bucket** for Terraform state storage with encryption and versioning
   2. **KMS key** for encryption with automatic rotation
-  3. **DynamoDB table** for state locking (optional)
+  3. **DynamoDB table** for state locking
   4. **IAM roles and policies** for GitHub OIDC integration
   5. **S3 bucket policies** with security configurations
 
@@ -126,7 +162,6 @@ usage: |-
 
   - The `StackName` parameter must be globally unique across your AWS account
   - The GitHub OIDC provider is account-wide, so you may want to set `CreateOIDCProvider=false` if it already exists
-  - The DynamoDB table is optional - set `DynamoDBTableName` to empty string to skip creation
   - All resources use the same `StackName` parameter to ensure consistent resource naming
 
   ## Repository Structure
@@ -138,7 +173,7 @@ usage: |-
   │       ├── validate-template.yml
   │       └── publish-template.yml
   ├── templates/                 # CloudFormation template
-  │   ├── terraform-backend.yaml
+  │   ├── aws-cloudformation-terraform-backend.yaml
   │   └── README.md
   ├── requirements.txt           # Python dependencies
   ├── README.yaml               # This file
