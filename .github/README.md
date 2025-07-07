@@ -38,6 +38,21 @@ Deploy the complete Terraform backend infrastructure in a single CloudFormation 
 
 ### Or deploy via AWS CLI
 
+#### Option 1: Deploy from Remote Template
+
+```bash
+aws cloudformation create-stack \
+  --stack-name my-backend \
+  --template-url https://s3.amazonaws.com/cloudposse-terraform-backend-quickstart/aws-cloudformation-terraform-backend.yaml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameters \
+    ParameterKey=StackName,ParameterValue=my-backend \
+    ParameterKey=GitHubOrg,ParameterValue=your-org \
+    ParameterKey=GitHubRepo,ParameterValue=your-repo
+```
+
+#### Option 2: Deploy from Local Template
+
 ```bash
 aws cloudformation create-stack \
   --stack-name my-backend \
@@ -48,26 +63,6 @@ aws cloudformation create-stack \
     ParameterKey=GitHubOrg,ParameterValue=your-org \
     ParameterKey=GitHubRepo,ParameterValue=your-repo
 ```
-
-## Template Overview
-
-### `aws-cloudformation-terraform-backend.yaml`
-Deploys the complete Terraform backend infrastructure in a single CloudFormation stack.
-
-**Parameters:**
-- `StackName` (required): Name prefix for all resources
-- `CreateStateBackend`: Whether to create state backend resources (default: true)
-- `CreatePlanFileStorage`: Whether to create plan file storage resources (default: true)
-- `CreateGitHubAccess`: Whether to create GitHub access resources (default: true)
-- `GitHubOrg`: GitHub organization or username (default: cloudposse)
-- `GitHubRepo`: GitHub repository name (default: "*")
-- `BucketName`: S3 bucket name for state storage (default: tfstate)
-- `DynamoDBTableName`: DynamoDB table name for state locking (default: tfstate)
-- `KmsKeyAliasName`: KMS key alias (default: tfstate)
-- `PlanBucketName`: S3 bucket name for plan files (default: tfplan)
-- `PlanDynamoDBTableName`: DynamoDB table name for plan metadata (default: tfplan)
-- `GitHubRoleName`: IAM role name (default: github-actions)
-- `CreateOIDCProvider`: Whether to create OIDC provider (default: true)
 
 ## Local Development
 
