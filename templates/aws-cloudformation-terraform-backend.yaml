@@ -82,10 +82,12 @@ Parameters:
     Default: github-actions
 
 Conditions:
-  ShouldCreateOIDCProvider: !Equals [!Ref CreateOIDCProvider, 'true']
   ShouldCreateStateBackend: !Equals [!Ref CreateStateBackend, 'true']
   ShouldCreatePlanFileStorage: !Equals [!Ref CreatePlanFileStorage, 'true']
   ShouldCreateGitHubAccess: !Equals [!Ref CreateGitHubAccess, 'true']
+  ShouldCreateOIDCProvider: !And 
+    - !Equals [!Ref CreateGitHubAccess, 'true']
+    - !Equals [!Ref CreateOIDCProvider, 'true']
 
 Resources:
   # ============================================================================
@@ -226,8 +228,14 @@ Resources:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
-              SSEAlgorithm: aws:kms
-              KMSMasterKeyID: !GetAtt KmsKey.Arn
+              SSEAlgorithm: !If 
+                - ShouldCreateStateBackend
+                - aws:kms
+                - AES256
+              KMSMasterKeyID: !If 
+                - ShouldCreateStateBackend
+                - !GetAtt KmsKey.Arn
+                - !Ref AWS::NoValue
       LifecycleConfiguration:
         Rules:
           - Id: DeleteOldVersions
@@ -284,9 +292,18 @@ Resources:
         AttributeName: ttl
         Enabled: true
       SSESpecification:
-        SSEEnabled: true
-        SSEType: KMS
-        KMSMasterKeyId: !GetAtt KmsKey.Arn
+        SSEEnabled: !If 
+          - ShouldCreateStateBackend
+          - true
+          - false
+        SSEType: !If 
+          - ShouldCreateStateBackend
+          - KMS
+          - !Ref AWS::NoValue
+        KMSMasterKeyId: !If 
+          - ShouldCreateStateBackend
+          - !GetAtt KmsKey.Arn
+          - !Ref AWS::NoValue
 
   # ============================================================================
   # GITHUB ACTIONS ACCESS
@@ -294,7 +311,7 @@ Resources:
 
   GitHubOIDCProvider:
     Type: AWS::IAM::OIDCProvider
-    Condition: ShouldCreateGitHubAccess
+    Condition: ShouldCreateOIDCProvider
     Properties:
       Url: https://token.actions.githubusercontent.com
       ClientIdList: 
