@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Cloud Posse Terraform Backend'
+Description: 'Cloud Posse Terraform AWS Backend'
 
 Parameters:
   StackName:
@@ -28,8 +28,16 @@ Parameters:
 
   DynamoDBTableName:
     Type: String
-    Description: Name of the DynamoDB table for state locking (leave empty to skip creation)
-    Default: ''
+    Description: Name of the DynamoDB table for state locking
+    Default: tfstate
+
+  CreateDynamoDB:
+    Type: String
+    Description: Set to 'true' to create the DynamoDB table, 'false' to skip (if it already exists)
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
 
   GitHubRoleName:
     Type: String
@@ -45,7 +53,7 @@ Parameters:
       - 'false'
 
 Conditions:
-  CreateDynamoDB: !Not [!Equals [!Ref DynamoDBTableName, '']]
+  ShouldCreateDynamoDB: !Equals [!Ref CreateDynamoDB, 'true']
   ShouldCreateOIDCProvider: !Equals [!Ref CreateOIDCProvider, 'true']
 
 Resources:
@@ -144,7 +152,7 @@ Resources:
 
   DynamoDBTable:
     Type: AWS::DynamoDB::Table
-    Condition: CreateDynamoDB
+    Condition: ShouldCreateDynamoDB
     Properties:
       TableName: !Sub '${StackName}-${DynamoDBTableName}'
       BillingMode: PAY_PER_REQUEST
@@ -195,49 +203,28 @@ Outputs:
     Description: Name of the stack
     Value: !Ref StackName
 
-  # Terraform Backend Outputs
-  StateBucketName:
+  AWSRegion:
+    Description: AWS region
+    Value: !Ref AWS::Region
+
+  TerraformStateBucketName:
     Description: Name of the S3 bucket for Terraform state
-    Value: !Ref TerraformStateBucket
+    Value: !Ref TerraformStateBucket 
 
-  StateBucketARN:
-    Description: ARN of the S3 bucket for Terraform state
-    Value: !GetAtt TerraformStateBucket.Arn
-
-  KmsKeyARN:
-    Description: ARN of the KMS key used for encryption
-    Value: !GetAtt KmsKey.Arn
-
-  KmsKeyAlias:
-    Description: Alias of the KMS key
-    Value: !Sub 'alias/${StackName}-${KmsKeyAliasName}'
-
-  DynamoDBTableName:
+  TerraformStateDynamoDBTableName:
     Description: Name of the DynamoDB table for state locking
     Value: !If 
-      - CreateDynamoDB
+      - ShouldCreateDynamoDB
       - !Sub '${StackName}-${DynamoDBTableName}'
       - ''
 
-  DynamoDBTableARN:
-    Description: ARN of the DynamoDB table for state locking
-    Value: !If 
-      - CreateDynamoDB
-      - !GetAtt DynamoDBTable.Arn
-      - ''
-
-  # GitHub Actions Outputs
   GitHubActionsRoleARN:
     Description: ARN of the IAM role for GitHub Actions
     Value: !GetAtt GitHubActionsRole.Arn
-
-  GitHubActionsRoleName:
-    Description: Name of the IAM role for GitHub Actions
-    Value: !Sub '${StackName}-${GitHubRoleName}'
 
   GitHubOIDCProviderARN:
     Description: ARN of the GitHub OIDC provider
     Value: !If 
       - ShouldCreateOIDCProvider
       - !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
-      - !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com' 
+      - !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
