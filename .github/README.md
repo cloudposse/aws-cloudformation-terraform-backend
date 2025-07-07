@@ -34,7 +34,7 @@ The template deploys all resources in a single CloudFormation stack for easy man
 
 Deploy the complete Terraform backend infrastructure in a single CloudFormation stack:
 
-[![Launch Stack](docs/launch_stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=atmos-pro-example-advanced&templateURL=https://s3.amazonaws.com/cloudposse-terraform-backend-quickstart/aws-cloudformation-terraform-backend.yaml)
+[![Launch Stack](../docs/launch_stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=atmos-pro-example-advanced&templateURL=https://s3.amazonaws.com/cloudposse-terraform-backend-quickstart/aws-cloudformation-terraform-backend.yaml)
 
 ### Or deploy via AWS CLI
 
