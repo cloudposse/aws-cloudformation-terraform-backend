@@ -221,10 +221,3 @@ Outputs:
   GitHubActionsRoleARN:
     Description: ARN of the IAM role for GitHub Actions
     Value: !GetAtt GitHubActionsRole.Arn
-
-  GitHubOIDCProviderARN:
-    Description: ARN of the GitHub OIDC provider
-    Value: !If 
-      - ShouldCreateOIDCProvider
-      - !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
-      - !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
