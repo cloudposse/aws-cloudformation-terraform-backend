@@ -6,24 +6,18 @@ Parameters:
     Type: String
     Description: (Required) Name of the stack (used as prefix for all resources). This must be globally unique
 
-  GitHubOrg:
+  # State Backend Parameters
+  CreateStateBackend:
     Type: String
-    Description: GitHub organization or username
-    Default: cloudposse
-  
-  GitHubRepo:
-    Type: String
-    Description: GitHub repository name
-    Default: demo
+    Description: Set to 'true' to create state backend resources (S3 bucket, DynamoDB table, KMS key), 'false' to skip
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
 
   BucketName:
     Type: String
     Description: Name of the S3 bucket for Terraform state
-    Default: tfstate
-  
-  KmsKeyAliasName:
-    Type: String
-    Description: Alias for the KMS key used for encryption
     Default: tfstate
 
   DynamoDBTableName:
@@ -31,18 +25,38 @@ Parameters:
     Description: Name of the DynamoDB table for state locking
     Default: tfstate
 
-  CreateDynamoDB:
+  KmsKeyAliasName:
     Type: String
-    Description: Set to 'true' to create the DynamoDB table, 'false' to skip (if it already exists)
+    Description: Alias for the KMS key used for encryption
+    Default: tfstate
+
+  # Plan File Storage Parameters
+  CreatePlanFileStorage:
+    Type: String
+    Description: Set to 'true' to create plan file storage resources (S3 bucket, DynamoDB table), 'false' to skip
     Default: 'true'
     AllowedValues:
       - 'true'
       - 'false'
 
-  GitHubRoleName:
+  PlanBucketName:
     Type: String
-    Description: Name of the IAM role for GitHub Actions
-    Default: github-actions
+    Description: Name of the S3 bucket for Terraform plan files
+    Default: tfplan
+
+  PlanDynamoDBTableName:
+    Type: String
+    Description: Name of the DynamoDB table for Terraform plan metadata
+    Default: tfplan
+
+  # GitHub Access Parameters
+  CreateGitHubAccess:
+    Type: String
+    Description: Set to 'true' to create GitHub access resources (OIDC provider, IAM role), 'false' to skip
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
 
   CreateOIDCProvider:
     Type: String
@@ -52,17 +66,35 @@ Parameters:
       - 'true'
       - 'false'
 
+  GitHubOrg:
+    Type: String
+    Description: GitHub organization or username
+    Default: cloudposse
+
+  GitHubRepo:
+    Type: String
+    Description: GitHub repository name
+    Default: "*"
+
+  GitHubRoleName:
+    Type: String
+    Description: Name of the IAM role for GitHub Actions
+    Default: github-actions
+
 Conditions:
-  ShouldCreateDynamoDB: !Equals [!Ref CreateDynamoDB, 'true']
   ShouldCreateOIDCProvider: !Equals [!Ref CreateOIDCProvider, 'true']
+  ShouldCreateStateBackend: !Equals [!Ref CreateStateBackend, 'true']
+  ShouldCreatePlanFileStorage: !Equals [!Ref CreatePlanFileStorage, 'true']
+  ShouldCreateGitHubAccess: !Equals [!Ref CreateGitHubAccess, 'true']
 
 Resources:
   # ============================================================================
-  # TERRAFORM BACKEND RESOURCES
+  # TERRAFORM BACKEND
   # ============================================================================
   
-  TerraformStateBucket:
+  StateBucket:
     Type: AWS::S3::Bucket
+    Condition: ShouldCreateStateBackend
     Properties:
       BucketName: !Sub '${StackName}-${BucketName}'
       VersioningConfiguration:
@@ -86,8 +118,9 @@ Resources:
 
   KmsKey:
     Type: AWS::KMS::Key
+    Condition: ShouldCreateStateBackend
     Properties:
-      Description: !Sub 'KMS key for ${StackName} Terraform state encryption'
+      Description: !Sub 'KMS key for ${StackName} state encryption'
       EnableKeyRotation: true
       KeyPolicy:
         Version: '2012-10-17'
@@ -112,47 +145,54 @@ Resources:
 
   KmsKeyAlias:
     Type: AWS::KMS::Alias
+    Condition: ShouldCreateStateBackend
     Properties:
       AliasName: !Sub 'alias/${StackName}-${KmsKeyAliasName}'
       TargetKeyId: !Ref KmsKey
 
-  TerraformStateBucketPolicy:
+  StateBucketPolicy:
     Type: AWS::S3::BucketPolicy
+    Condition: ShouldCreateStateBackend
     Properties:
-      Bucket: !Ref TerraformStateBucket
+      Bucket: !Ref StateBucket
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: EnforceTLS
+          - Sid: DenyIncorrectEncryptionHeader
             Effect: Deny
-            Principal: '*'
+            Principal:
+              AWS: '*'
+            Action: 's3:PutObject'
+            Resource: !Sub 'arn:aws:s3:::${StateBucket}/*'
+            Condition:
+              StringNotEquals:
+                's3:x-amz-server-side-encryption':
+                  - AES256
+                  - aws:kms
+          - Sid: DenyUnEncryptedObjectUploads
+            Effect: Deny
+            Principal:
+              AWS: '*'
+            Action: 's3:PutObject'
+            Resource: !Sub 'arn:aws:s3:::${StateBucket}/*'
+            Condition:
+              StringEquals:
+                's3:x-amz-server-side-encryption': ''
+          - Sid: EnforceTlsRequestsOnly
+            Effect: Deny
+            Principal:
+              AWS: '*'
             Action: 's3:*'
-            Resource: 
-              - !Sub 'arn:aws:s3:::${TerraformStateBucket}'
-              - !Sub 'arn:aws:s3:::${TerraformStateBucket}/*'
+            Resource:
+              - !Sub 'arn:aws:s3:::${StateBucket}'
+              - !Sub 'arn:aws:s3:::${StateBucket}/*'
             Condition:
               Bool:
                 aws:SecureTransport: false
-          - Sid: DenyIncorrectEncryptionHeader
-            Effect: Deny
-            Principal: '*'
-            Action: 's3:PutObject'
-            Resource: !Sub 'arn:aws:s3:::${TerraformStateBucket}/*'
-            Condition:
-              StringNotEquals:
-                's3:x-amz-server-side-encryption': 'aws:kms'
-          - Sid: DenyUnEncryptedObjectUploads
-            Effect: Deny
-            Principal: '*'
-            Action: 's3:PutObject'
-            Resource: !Sub 'arn:aws:s3:::${TerraformStateBucket}/*'
-            Condition:
-              Bool:
-                's3:x-amz-server-side-encryption': false
 
-  DynamoDBTable:
+  StateDynamoDBTable:
     Type: AWS::DynamoDB::Table
-    Condition: ShouldCreateDynamoDB
+    Condition: ShouldCreateStateBackend
     Properties:
       TableName: !Sub '${StackName}-${DynamoDBTableName}'
       BillingMode: PAY_PER_REQUEST
@@ -168,12 +208,93 @@ Resources:
         KMSMasterKeyId: !GetAtt KmsKey.Arn
 
   # ============================================================================
-  # GITHUB ACTIONS RESOURCES
+  # PLAN FILE STORAGE
+  # ============================================================================
+
+  PlanBucket:
+    Type: AWS::S3::Bucket
+    Condition: ShouldCreatePlanFileStorage
+    Properties:
+      BucketName: !Sub '${StackName}-${PlanBucketName}'
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !GetAtt KmsKey.Arn
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 90
+
+  PlanBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: ShouldCreatePlanFileStorage
+    Properties:
+      Bucket: !Ref PlanBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnforceTlsRequestsOnly
+            Effect: Deny
+            Principal:
+              AWS: '*'
+            Action: 's3:*'
+            Resource:
+              - !Sub 'arn:aws:s3:::${PlanBucket}'
+              - !Sub 'arn:aws:s3:::${PlanBucket}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+  PlanDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Condition: ShouldCreatePlanFileStorage
+    Properties:
+      TableName: !Sub '${StackName}-${PlanDynamoDBTableName}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: pr
+          AttributeType: N
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: pr-createdAt-index
+          KeySchema:
+            - AttributeName: pr
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !GetAtt KmsKey.Arn
+
+  # ============================================================================
+  # GITHUB ACTIONS ACCESS
   # ============================================================================
 
   GitHubOIDCProvider:
     Type: AWS::IAM::OIDCProvider
-    Condition: ShouldCreateOIDCProvider
+    Condition: ShouldCreateGitHubAccess
     Properties:
       Url: https://token.actions.githubusercontent.com
       ClientIdList: 
@@ -183,6 +304,7 @@ Resources:
 
   GitHubActionsRole:
     Type: AWS::IAM::Role
+    Condition: ShouldCreateGitHubAccess
     Properties:
       RoleName: !Sub '${StackName}-${GitHubRoleName}'
       AssumeRolePolicyDocument:
@@ -199,25 +321,45 @@ Resources:
         - arn:aws:iam::aws:policy/AdministratorAccess
 
 Outputs:
-  StackName:
-    Description: Name of the stack
-    Value: !Ref StackName
-
   AWSRegion:
     Description: AWS region
     Value: !Ref AWS::Region
 
-  TerraformStateBucketName:
-    Description: Name of the S3 bucket for Terraform state
-    Value: !Ref TerraformStateBucket 
-
-  TerraformStateDynamoDBTableName:
-    Description: Name of the DynamoDB table for state locking
-    Value: !If 
-      - ShouldCreateDynamoDB
-      - !Sub '${StackName}-${DynamoDBTableName}'
-      - ''
-
   GitHubActionsRoleARN:
     Description: ARN of the IAM role for GitHub Actions
-    Value: !GetAtt GitHubActionsRole.Arn
+    Value: !If 
+      - ShouldCreateGitHubAccess
+      - !GetAtt GitHubActionsRole.Arn
+      - ''
+
+  PlanBucketName:
+    Description: Name of the S3 bucket for plan files
+    Value: !If 
+      - ShouldCreatePlanFileStorage
+      - !Ref PlanBucket
+      - ''
+
+  PlanDynamoDBTableName:
+    Description: Name of the DynamoDB table for plan metadata
+    Value: !If 
+      - ShouldCreatePlanFileStorage
+      - !Ref PlanDynamoDBTable
+      - ''
+
+  StackName:
+    Description: Name of the stack
+    Value: !Ref StackName
+
+  StateBucketName:
+    Description: Name of the S3 bucket for state storage
+    Value: !If 
+      - ShouldCreateStateBackend
+      - !Ref StateBucket
+      - ''
+
+  StateDynamoDBTableName:
+    Description: Name of the DynamoDB table for state locking
+    Value: !If 
+      - ShouldCreateStateBackend
+      - !Ref StateDynamoDBTable
+      - ''
