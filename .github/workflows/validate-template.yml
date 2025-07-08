@@ -6,10 +6,6 @@ on:
       - 'templates/*.yaml'
       - '.github/workflows/validate-template.yml'
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   validate:
     name: Validate Template
@@ -18,11 +14,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.AWS_CLOUDFORMATION_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION}}
+      - name: Setup CloudFormation Linter
+        uses: scottbrenner/cfn-lint-action@v2
 
-      - name: Validate CloudFormation template
-        run: aws cloudformation validate-template --template-body file://templates/aws-cloudformation-terraform-backend.yaml 
+      - name: Lint CloudFormation templates
+        run: |
+          cfn-lint --version
+          cfn-lint -t templates/*.yaml
