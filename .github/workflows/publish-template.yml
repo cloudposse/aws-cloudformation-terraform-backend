@@ -41,7 +41,7 @@ jobs:
         run: |
           TEMPLATE_URL="https://${{ vars.CLOUDFORMATION_TEMPLATE_BUCKET }}.s3.amazonaws.com/${{ github.event.repository.name }}.yaml"
           ENCODED_URL=$(echo -n "$TEMPLATE_URL" | jq -sRr @uri)
-          echo "url=https://console.aws.amazon.com/cloudformation/home?region=${{ vars.AWS_REGION }}/#/stacks/create/review?templateURL=$ENCODED_URL" >> $GITHUB_OUTPUT
+          echo "url=https://console.aws.amazon.com/cloudformation/home?region=us-east-1/#/stacks/create/review?templateURL=$ENCODED_URL" >> $GITHUB_OUTPUT
 
       - name: Report Result to GitHub Summary
         run: |
