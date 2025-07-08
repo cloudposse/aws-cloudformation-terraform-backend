@@ -45,7 +45,7 @@ Deploy the complete Terraform backend infrastructure in a single CloudFormation 
 Deploy the template from the remote URL:
 
 ```bash
-aws cloudformation create-stack \
+aws cloudformation deploy \
   --stack-name my-backend \
   --template-url https://s3.amazonaws.com/cplive-core-ue2-public-cloudformation/aws-cloudformation-terraform-backend.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
@@ -58,7 +58,7 @@ aws cloudformation create-stack \
 Clone the repository and deploy the template from the local directory:
 
 ```bash
-aws cloudformation create-stack \
+aws cloudformation deploy \
   --stack-name my-backend \
   --template-body file://templates/aws-cloudformation-terraform-backend.yaml \
   --capabilities CAPABILITY_NAMED_IAM \

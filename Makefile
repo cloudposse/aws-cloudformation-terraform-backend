@@ -16,7 +16,8 @@ deploy:
 	  --stack-name atmos-pro-ex1 \
 	  --template-body file://templates/aws-cloudformation-terraform-backend.yaml \
 	  --capabilities CAPABILITY_NAMED_IAM \
-	  --parameters \
+	  --capabilities CAPABILITY_NAMED_IAM \
+	  --no-fail-on-empty-changeset \
 	      ParameterKey=GitHubOrg,ParameterValue=cloudposse-examples \
 	      ParameterKey=CreateOIDCProvider,ParameterValue=false;
 
