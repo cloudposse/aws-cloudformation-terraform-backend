@@ -44,6 +44,7 @@ jobs:
           echo "url=https://console.aws.amazon.com/cloudformation/home?region=${{ vars.AWS_REGION }}/#/stacks/create/review?templateURL=$ENCODED_URL" >> $GITHUB_OUTPUT
 
       - name: Comment on PR
+        if: github.event_name == 'pull_request'
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
