@@ -9,7 +9,7 @@ Parameters:
   # State Backend Parameters
   CreateStateBackend:
     Type: String
-    Description: Set to 'true' to create state backend resources (S3 bucket, DynamoDB table, KMS key), 'false' to skip
+    Description: Set to 'true' to create state backend resources (S3 bucket, DynamoDB table), 'false' to skip
     Default: 'true'
     AllowedValues:
       - 'true'

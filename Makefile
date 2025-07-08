@@ -9,6 +9,8 @@ lint:
 validate:
 	aws cloudformation validate-template --template-body file://templates/aws-cloudformation-terraform-backend.yaml
 
+# This deploys the cloudformation template to Cloud Posse's test organization.
+# See https://github.com/cloudposse-examples/infra-demo-atmos-pro
 deploy:
 	@echo "Checking if stack exists..."
 	@if aws cloudformation describe-stacks --stack-name atmos-pro-example-advanced >/dev/null 2>&1; then \
@@ -19,7 +21,7 @@ deploy:
 			--capabilities CAPABILITY_NAMED_IAM \
 			--parameters \
 				ParameterKey=StackName,ParameterValue=atmos-pro-ex1 \
-				ParameterKey=GitHubOrg,ParameterValue=cloudposse \
+				ParameterKey=GitHubOrg,ParameterValue=cloudposse-examples \
 				ParameterKey=CreateOIDCProvider,ParameterValue=false; \
 	else \
 		echo "Stack does not exist, creating..."; \
@@ -29,7 +31,7 @@ deploy:
 			--capabilities CAPABILITY_NAMED_IAM \
 			--parameters \
 				ParameterKey=StackName,ParameterValue=atmos-pro-ex1 \
-				ParameterKey=GitHubOrg,ParameterValue=cloudposse \
+				ParameterKey=GitHubOrg,ParameterValue=cloudposse-examples \
 				ParameterKey=CreateOIDCProvider,ParameterValue=false; \
 	fi
 
