@@ -2,11 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: 'Cloud Posse Terraform AWS Backend'
 
 Parameters:
-  StackName:
-    Type: String
-    Description: (Required) Name of the stack (used as prefix for all resources). This must be globally unique
-
-  # State Backend Parameters
   CreateStateBackend:
     Type: String
     Description: Set to 'true' to create state backend resources (S3 bucket, DynamoDB table), 'false' to skip
@@ -15,17 +10,6 @@ Parameters:
       - 'true'
       - 'false'
 
-  BucketName:
-    Type: String
-    Description: Name of the S3 bucket for Terraform state
-    Default: tfstate
-
-  DynamoDBTableName:
-    Type: String
-    Description: Name of the DynamoDB table for state locking
-    Default: tfstate
-
-  # Plan File Storage Parameters
   CreatePlanFileStorage:
     Type: String
     Description: Set to 'true' to create plan file storage resources (S3 bucket, DynamoDB table), 'false' to skip
@@ -34,17 +18,6 @@ Parameters:
       - 'true'
       - 'false'
 
-  PlanBucketName:
-    Type: String
-    Description: Name of the S3 bucket for Terraform plan files
-    Default: tfplan
-
-  PlanDynamoDBTableName:
-    Type: String
-    Description: Name of the DynamoDB table for Terraform plan metadata
-    Default: tfplan
-
-  # GitHub Access Parameters
   CreateGitHubAccess:
     Type: String
     Description: Set to 'true' to create GitHub access resources (OIDC provider, IAM role), 'false' to skip
@@ -63,18 +36,12 @@ Parameters:
 
   GitHubOrg:
     Type: String
-    Description: GitHub organization or username
-    Default: cloudposse
+    Description: Your GitHub organization or username
 
   GitHubRepo:
     Type: String
-    Description: GitHub repository name
+    Description: GitHub repository name. Set to `*` to allow all repositories
     Default: "*"
-
-  GitHubRoleName:
-    Type: String
-    Description: Name of the IAM role for GitHub Actions
-    Default: github-actions
 
 Conditions:
   ShouldCreateStateBackend: !Equals [!Ref CreateStateBackend, 'true']
@@ -93,7 +60,7 @@ Resources:
     Type: AWS::S3::Bucket
     Condition: ShouldCreateStateBackend
     Properties:
-      BucketName: !Sub '${StackName}-${BucketName}'
+      BucketName: !Sub '${AWS::StackName}-tfstate'
       VersioningConfiguration:
         Status: Enabled
       PublicAccessBlockConfiguration:
@@ -157,7 +124,7 @@ Resources:
     Type: AWS::DynamoDB::Table
     Condition: ShouldCreateStateBackend
     Properties:
-      TableName: !Sub '${StackName}-${DynamoDBTableName}'
+      TableName: !Sub '${AWS::StackName}-tfstate'
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: LockID
@@ -176,7 +143,7 @@ Resources:
     Type: AWS::S3::Bucket
     Condition: ShouldCreatePlanFileStorage
     Properties:
-      BucketName: !Sub '${StackName}-${PlanBucketName}'
+      BucketName: !Sub '${AWS::StackName}-tfplan'
       VersioningConfiguration:
         Status: Enabled
       PublicAccessBlockConfiguration:
@@ -226,7 +193,7 @@ Resources:
     Type: AWS::DynamoDB::Table
     Condition: ShouldCreatePlanFileStorage
     Properties:
-      TableName: !Sub '${StackName}-${PlanDynamoDBTableName}'
+      TableName: !Sub '${AWS::StackName}-tfplan'
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: id
@@ -271,7 +238,7 @@ Resources:
     Type: AWS::IAM::Role
     Condition: ShouldCreateGitHubAccess
     Properties:
-      RoleName: !Sub '${StackName}-${GitHubRoleName}'
+      RoleName: !Sub '${AWS::StackName}-github-actions'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -313,7 +280,7 @@ Outputs:
 
   StackName:
     Description: Name of the stack
-    Value: !Ref StackName
+    Value: !Ref AWS::StackName
 
   StateBucketName:
     Description: Name of the S3 bucket for state storage
