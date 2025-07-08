@@ -58,10 +58,11 @@ usage: |-
   Clone the repository and deploy the template from the local directory:
 
   ```bash
-  aws cloudformation create-stack \
+  aws cloudformation deploy \
     --stack-name my-backend \
     --template-body file://templates/aws-cloudformation-terraform-backend.yaml \
     --capabilities CAPABILITY_NAMED_IAM \
+    --no-fail-on-empty-changeset \
     --parameters \
       ParameterKey=GitHubOrg,ParameterValue=your-org
   ```
