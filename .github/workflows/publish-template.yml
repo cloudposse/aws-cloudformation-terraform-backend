@@ -28,7 +28,8 @@ jobs:
           aws s3 cp templates/aws-cloudformation-terraform-backend.yaml s3://${{ vars.CLOUDFORMATION_TEMPLATE_BUCKET }}/${{ github.event.repository.name }}.yaml \
             --content-type 'application/x-yaml' \
             --cache-control 'no-cache' \
-            --acl public-read
+            --acl public-read \
+            --server-side-encryption AES256
 
       - name: Get template URL
         id: template-url
