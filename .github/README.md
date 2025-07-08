@@ -123,6 +123,17 @@ aws cloudformation delete-stack --stack-name my-backend --deletion-mode FORCE_DE
 > [!WARNING]
 > This will destroy the state files and empty the S3 bucket. This is a destructive action and cannot be undone.
 
+## CloudFormation Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `CreateStateBackend` | Set to 'true' to create state backend resources (S3 bucket, DynamoDB table), 'false' to skip | true |
+| `CreatePlanFileStorage` | Set to 'true' to create plan file storage resources (S3 bucket, DynamoDB table), 'false' to skip | true |
+| `CreateGitHubAccess` | Set to 'true' to create GitHub access resources (OIDC provider, IAM role), 'false' to skip | true |
+| `CreateOIDCProvider` | Set to 'true' to create the GitHub OIDC provider, 'false' to skip (if it already exists) | true |
+| `GitHubOrg` | GitHub organization or username |  |
+| `GitHubRepo` | GitHub repository name. Set to `*` to allow all repositories | * |
+
 ## Local Development
 
 ### Prerequisites
@@ -172,17 +183,6 @@ This command generates the README.md file from the README.yaml configuration.
 ├── requirements.txt          # Python dependencies
 └── README.yaml              # This file
 ```
-
-## CloudFormation Parameters
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `CreateStateBackend` | Set to 'true' to create state backend resources (S3 bucket, DynamoDB table), 'false' to skip | true |
-| `CreatePlanFileStorage` | Set to 'true' to create plan file storage resources (S3 bucket, DynamoDB table), 'false' to skip | true |
-| `CreateGitHubAccess` | Set to 'true' to create GitHub access resources (OIDC provider, IAM role), 'false' to skip | true |
-| `CreateOIDCProvider` | Set to 'true' to create the GitHub OIDC provider, 'false' to skip (if it already exists) | true |
-| `GitHubOrg` | GitHub organization or username |  |
-| `GitHubRepo` | GitHub repository name. Set to `*` to allow all repositories | * |
 
 
 
