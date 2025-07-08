@@ -120,7 +120,7 @@ To destroy the stack and empty the S3 bucket, run:
 aws cloudformation delete-stack --stack-name my-backend --deletion-mode FORCE_DELETE_STACK
 ```
 
-> ![WARNING]
+> [!WARNING]
 > This will destroy the state files and empty the S3 bucket. This is a destructive action and cannot be undone.
 
 ## Local Development
