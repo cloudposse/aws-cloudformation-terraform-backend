@@ -12,7 +12,6 @@ validate:
 # This deploys the cloudformation template to Cloud Posse's test organization.
 # See https://github.com/cloudposse-examples/infra-demo-atmos-pro
 deploy:
-	@echo "Checking if stack exists..."
 	aws cloudformation deploy \
 	  --stack-name atmos-pro-ex1 \
 	  --template-body file://templates/aws-cloudformation-terraform-backend.yaml \
