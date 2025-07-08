@@ -1,7 +1,7 @@
 # aws-cloudformation-terraform-backend
 
 
-CloudFormation template that sets up a complete Terraform backend infrastructure on AWS with three distinct resource types: state backend resources (S3 bucket, KMS key, DynamoDB table for Terraform/OpenTofu state), plan file storage resources (S3 bucket, DynamoDB table for Cloud Posse GitHub Actions), and GitHub Actions access resources (OIDC provider, IAM roles for secure authentication).
+CloudFormation template that sets up a complete Terraform backend infrastructure on AWS with three distinct resource types: state backend resources (S3 bucket, DynamoDB table for Terraform/OpenTofu state with AWS managed KMS encryption), plan file storage resources (S3 bucket, DynamoDB table for Cloud Posse GitHub Actions), and GitHub Actions access resources (OIDC provider, IAM roles for secure authentication).
 
 
 ## Introduction
@@ -10,9 +10,8 @@ This repository contains a CloudFormation template that sets up a complete Terra
 
 ### 1. State Backend Resources
 Used for Terraform or OpenTofu state storage:
-- S3 bucket for Terraform state storage
+- S3 bucket for Terraform state storage with AWS managed KMS encryption
 - DynamoDB table for state locking
-- KMS key for state encryption at rest
 
 ### 2. Plan File Storage Resources
 Used with Cloud Posse GitHub Actions to store plan files between planning and applying:
@@ -34,7 +33,7 @@ The template deploys all resources in a single CloudFormation stack for easy man
 
 Deploy the complete Terraform backend infrastructure in a single CloudFormation stack:
 
-[<img width="144" height="27" src="../docs/launch_stack.png" alt="Launch Stack" />](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=atmos-pro-example-advanced&templateURL=https://s3.amazonaws.com/cloudposse-terraform-backend-quickstart/aws-cloudformation-terraform-backend.yaml)
+[<img width="144" height="27" src="../docs/launch_stack.png" alt="Launch Stack" />](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=atmos-pro-example-advanced&templateURL=https://s3.amazonaws.com/cplive-core-ue2-public-cloudformation/aws-cloudformation-terraform-backend.yaml)
 
 ### Or deploy via AWS CLI
 
@@ -45,7 +44,7 @@ Deploy the template from the remote URL:
 ```bash
 aws cloudformation create-stack \
   --stack-name my-backend \
-  --template-url https://s3.amazonaws.com/cloudposse-terraform-backend-quickstart/aws-cloudformation-terraform-backend.yaml \
+  --template-url https://s3.amazonaws.com/cplive-core-ue2-public-cloudformation/aws-cloudformation-terraform-backend.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameters \
     ParameterKey=StackName,ParameterValue=my-backend \
@@ -180,10 +179,9 @@ This command generates the README.md file from the README.yaml configuration.
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `StackName` | (Required) Name of the stack (used as prefix for all resources). This must be globally unique | - |
-| `CreateStateBackend` | Set to 'true' to create state backend resources (S3 bucket, DynamoDB table, KMS key), 'false' to skip | true |
+| `CreateStateBackend` | Set to 'true' to create state backend resources (S3 bucket, DynamoDB table), 'false' to skip | true |
 | `BucketName` | Name of the S3 bucket for Terraform state | tfstate |
 | `DynamoDBTableName` | Name of the DynamoDB table for state locking | tfstate |
-| `KmsKeyAliasName` | Alias for the KMS key used for encryption | tfstate |
 | `CreatePlanFileStorage` | Set to 'true' to create plan file storage resources (S3 bucket, DynamoDB table), 'false' to skip | true |
 | `PlanBucketName` | Name of the S3 bucket for Terraform plan files | tfplan |
 | `PlanDynamoDBTableName` | Name of the DynamoDB table for Terraform plan metadata | tfplan |
