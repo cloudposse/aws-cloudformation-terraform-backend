@@ -10,7 +10,7 @@ This repository contains a CloudFormation template that sets up a complete Terra
 
 ### 1. State Backend Resources
 Used for Terraform or OpenTofu state storage:
-- S3 bucket for Terraform state storage with AWS managed KMS encryption
+- S3 bucket for Terraform state storage
 - DynamoDB table for state locking
 
 ### 2. Plan File Storage Resources
@@ -33,6 +33,9 @@ The template deploys all resources in a single CloudFormation stack for easy man
 
 Deploy the complete Terraform backend infrastructure in a single CloudFormation stack:
 
+> [!IMPORTANT]
+> Your stack name must be unique across all AWS accounts. We use the stack name as part of the S3 bucket and DynamoDB table IDs.
+
 [<img width="144" height="27" src="../docs/launch_stack.png" alt="Launch Stack" />](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=atmos-pro-example-advanced&templateURL=https://s3.amazonaws.com/cplive-core-ue2-public-cloudformation/aws-cloudformation-terraform-backend.yaml)
 
 ### Or deploy via AWS CLI
@@ -47,8 +50,7 @@ aws cloudformation create-stack \
   --template-url https://s3.amazonaws.com/cplive-core-ue2-public-cloudformation/aws-cloudformation-terraform-backend.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameters \
-    ParameterKey=GitHubOrg,ParameterValue=your-org \
-    ParameterKey=GitHubRepo,ParameterValue=your-repo
+    ParameterKey=GitHubOrg,ParameterValue=your-org
 ```
 
 #### Option 2: Deploy from Local Template
@@ -61,8 +63,7 @@ aws cloudformation create-stack \
   --template-body file://templates/aws-cloudformation-terraform-backend.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameters \
-    ParameterKey=GitHubOrg,ParameterValue=your-org \
-    ParameterKey=GitHubRepo,ParameterValue=your-repo
+    ParameterKey=GitHubOrg,ParameterValue=your-org
 ```
 
 ## Usage with Atmos
