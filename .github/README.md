@@ -49,6 +49,7 @@ aws cloudformation deploy \
   --stack-name my-backend \
   --template-url https://s3.amazonaws.com/cplive-core-ue2-public-cloudformation/aws-cloudformation-terraform-backend.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
+  --no-fail-on-empty-changeset \
   --parameters \
     ParameterKey=GitHubOrg,ParameterValue=your-org
 ```
@@ -58,7 +59,7 @@ aws cloudformation deploy \
 Clone the repository and deploy the template from the local directory:
 
 ```bash
-aws cloudformation deploy \
+aws cloudformation create-stack \
   --stack-name my-backend \
   --template-body file://templates/aws-cloudformation-terraform-backend.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
