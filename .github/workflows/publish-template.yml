@@ -43,6 +43,12 @@ jobs:
           ENCODED_URL=$(echo -n "$TEMPLATE_URL" | jq -sRr @uri)
           echo "url=https://console.aws.amazon.com/cloudformation/home?region=${{ vars.AWS_REGION }}/#/stacks/create/review?templateURL=$ENCODED_URL" >> $GITHUB_OUTPUT
 
+      - name: Report Result to GitHub Summary
+        run: |
+          echo "CloudFormation template published successfully!" >> $GITHUB_OUTPUT
+          echo "Template URL: ${{ steps.template-url.outputs.url }}" >> $GITHUB_OUTPUT
+          echo "Launch Stack: ${{ steps.console-url.outputs.url }}" >> $GITHUB_OUTPUT
+
       - name: Comment on PR
         if: github.event_name == 'pull_request'
         uses: peter-evans/create-or-update-comment@v4
