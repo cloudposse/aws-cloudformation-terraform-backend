@@ -25,11 +25,6 @@ Parameters:
     Description: Name of the DynamoDB table for state locking
     Default: tfstate
 
-  KmsKeyAliasName:
-    Type: String
-    Description: Alias for the KMS key used for encryption
-    Default: tfstate
-
   # Plan File Storage Parameters
   CreatePlanFileStorage:
     Type: String
@@ -110,47 +105,13 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: aws:kms
-              KMSMasterKeyID: !GetAtt KmsKey.Arn
+              KMSMasterKeyID: !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/s3'
       LifecycleConfiguration:
         Rules:
           - Id: DeleteOldVersions
             Status: Enabled
             NoncurrentVersionExpiration:
               NoncurrentDays: 90
-
-  KmsKey:
-    Type: AWS::KMS::Key
-    Condition: ShouldCreateStateBackend
-    Properties:
-      Description: !Sub 'KMS key for ${StackName} state encryption'
-      EnableKeyRotation: true
-      KeyPolicy:
-        Version: '2012-10-17'
-        Statement:
-          - Sid: Enable IAM User Permissions
-            Effect: Allow
-            Principal:
-              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
-            Action: 'kms:*'
-            Resource: '*'
-          - Sid: Allow S3 to use the key
-            Effect: Allow
-            Principal:
-              Service: s3.amazonaws.com
-            Action:
-              - kms:Encrypt
-              - kms:Decrypt
-              - kms:ReEncrypt*
-              - kms:GenerateDataKey*
-              - kms:DescribeKey
-            Resource: '*'
-
-  KmsKeyAlias:
-    Type: AWS::KMS::Alias
-    Condition: ShouldCreateStateBackend
-    Properties:
-      AliasName: !Sub 'alias/${StackName}-${KmsKeyAliasName}'
-      TargetKeyId: !Ref KmsKey
 
   StateBucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -206,8 +167,6 @@ Resources:
           KeyType: HASH
       SSESpecification:
         SSEEnabled: true
-        SSEType: KMS
-        KMSMasterKeyId: !GetAtt KmsKey.Arn
 
   # ============================================================================
   # PLAN FILE STORAGE
@@ -234,7 +193,7 @@ Resources:
                 - AES256
               KMSMasterKeyID: !If 
                 - ShouldCreateStateBackend
-                - !GetAtt KmsKey.Arn
+                - !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/s3'
                 - !Ref AWS::NoValue
       LifecycleConfiguration:
         Rules:
@@ -292,18 +251,7 @@ Resources:
         AttributeName: ttl
         Enabled: true
       SSESpecification:
-        SSEEnabled: !If 
-          - ShouldCreateStateBackend
-          - true
-          - false
-        SSEType: !If 
-          - ShouldCreateStateBackend
-          - KMS
-          - !Ref AWS::NoValue
-        KMSMasterKeyId: !If 
-          - ShouldCreateStateBackend
-          - !GetAtt KmsKey.Arn
-          - !Ref AWS::NoValue
+        SSEEnabled: true
 
   # ============================================================================
   # GITHUB ACTIONS ACCESS

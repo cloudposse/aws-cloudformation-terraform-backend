@@ -11,8 +11,8 @@ This repository contains a CloudFormation template that sets up a complete Terra
 ### 1. State Backend Resources
 Used for Terraform or OpenTofu state storage:
 - S3 bucket for Terraform state storage
-- KMS key for encryption
 - DynamoDB table for state locking
+- KMS key for state encryption at rest
 
 ### 2. Plan File Storage Resources
 Used with Cloud Posse GitHub Actions to store plan files between planning and applying:
@@ -40,6 +40,8 @@ Deploy the complete Terraform backend infrastructure in a single CloudFormation 
 
 #### Option 1: Deploy from Remote Template
 
+Deploy the template from the remote URL:
+
 ```bash
 aws cloudformation create-stack \
   --stack-name my-backend \
@@ -53,6 +55,8 @@ aws cloudformation create-stack \
 
 #### Option 2: Deploy from Local Template
 
+Clone the repository and deploy the template from the local directory:
+
 ```bash
 aws cloudformation create-stack \
   --stack-name my-backend \
@@ -64,6 +68,63 @@ aws cloudformation create-stack \
     ParameterKey=GitHubRepo,ParameterValue=your-repo
 ```
 
+## Usage with Atmos
+
+Once deployed, you will need to add the new role and plan file storage configuration to your Atmos configuration.
+
+```yaml
+integrations:
+  github:
+    gitops:
+      terraform-version: "1.5.7"
+      artifact-storage:
+        region: "us-east-1" # Ensure this matches the region where the template was deployed
+        bucket: "my-backend-tfplan" # Get this value from the PlanBucketName output
+        table: "my-backend-tfplan" # Get this value from the PlanDynamoDBTableName output
+        role: "arn:aws:iam::123456789012:role/my-backend-github-actions" # Get this value from the GitHubActionsRoleARN output
+      role:
+        plan: "arn:aws:iam::123456789012:role/my-backend-github-actions" # Get this value from the GitHubActionsRoleARN output
+        apply: "arn:aws:iam::123456789012:role/my-backend-github-actions" # Get this value from the GitHubActionsRoleARN output
+```
+
+Then use the state backend with Atmos by specifying the S3 bucket and DynamoDB table.
+
+```yaml
+terraform:
+  backend_type: s3
+  backend:
+    s3:
+      bucket: my-backend-tfstate # Get this value from the StateBucketName output
+      dynamodb_table: my-backend-tfstate # Get this value from the StateDynamoDBTableName output
+      role_arn: "" # Leave empty to use the current AWS credentials
+      encrypt: true
+      key: terraform.tfstate
+      acl: bucket-owner-full-control
+      region: us-east-1 # Ensure this matches the region where the template was deployed
+  remote_state_backend:
+    s3:
+      role_arn: "" # Leave empty to use the current AWS credentials
+```
+
+## Destroying the Template
+
+To destroy the template, run:
+
+```bash
+aws cloudformation delete-stack --stack-name my-backend
+```
+
+This will destroy the stack and all the resources it created. However, if the S3 bucket is not empty, the stack will fail to destroy.
+
+To destroy the stack and empty the S3 bucket, run:
+
+```bash
+aws cloudformation delete-stack --stack-name my-backend --deletion-mode FORCE_DELETE_STACK
+```
+
+> ![WARNING]
+> This will destroy the state files and empty the S3 bucket. This is a destructive action and cannot be undone.
+
 ## Local Development
 
 ### Prerequisites
@@ -72,7 +133,7 @@ aws cloudformation create-stack \
 
 ### Install Dependencies
 
-To install the dependencies, run:
+For local CloudFormation development, install the dependencies with pip. We recommend using cfn-lint to validate the template locally. This is not required to deploy the template itself.
 
 ```bash
 pip install -r requirements.txt
