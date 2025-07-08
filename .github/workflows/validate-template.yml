@@ -6,6 +6,10 @@ on:
       - 'templates/*.yaml'
       - '.github/workflows/validate-template.yml'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   validate:
     name: Validate Template
