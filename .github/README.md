@@ -132,7 +132,7 @@ aws cloudformation delete-stack --stack-name my-backend --deletion-mode FORCE_DE
 | `CreatePlanFileStorage` | Set to 'true' to create plan file storage resources (S3 bucket, DynamoDB table), 'false' to skip | true |
 | `CreateGitHubAccess` | Set to 'true' to create GitHub access resources (OIDC provider, IAM role), 'false' to skip | true |
 | `CreateOIDCProvider` | Set to 'true' to create the GitHub OIDC provider, 'false' to skip (if it already exists) | true |
-| `GitHubOrg` | GitHub organization or username |  |
+| `GitHubOrg` | GitHub organization or username (case sensitive) |  |
 | `GitHubRepo` | GitHub repository name. Set to `*` to allow all repositories | * |
 
 ## Local Development

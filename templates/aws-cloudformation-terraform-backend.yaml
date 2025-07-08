@@ -36,7 +36,7 @@ Parameters:
 
   GitHubOrg:
     Type: String
-    Description: Your GitHub organization or username
+    Description: Your GitHub organization or username (case sensitive)
 
   GitHubRepo:
     Type: String

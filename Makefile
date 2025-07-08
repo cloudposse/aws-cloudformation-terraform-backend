@@ -16,10 +16,12 @@ deploy:
 	  --stack-name atmos-pro-ex1 \
 	  --template-body file://templates/aws-cloudformation-terraform-backend.yaml \
 	  --capabilities CAPABILITY_NAMED_IAM \
-	  --capabilities CAPABILITY_NAMED_IAM \
 	  --no-fail-on-empty-changeset \
-	      ParameterKey=GitHubOrg,ParameterValue=cloudposse-examples \
-	      ParameterKey=CreateOIDCProvider,ParameterValue=false;
+	  --parameters \
+	  	ParameterKey=GitHubOrg,ParameterValue=cloudposse-examples \
+	  	ParameterKey=CreateOIDCProvider,ParameterValue=false;
 
+# This deletes Cloud Posse's internal test stack
+# See https://github.com/cloudposse-examples/infra-demo-atmos-pro
 delete:
 	aws cloudformation delete-stack --stack-name atmos-pro-ex1
