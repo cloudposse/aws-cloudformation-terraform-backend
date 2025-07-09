@@ -39,32 +39,39 @@ usage: |-
 
   ### Or deploy via AWS CLI
 
-  #### Option 1: Deploy from Remote Template
+  #### Option 1: Download from S3 and Deploy
 
-  Deploy the template from the remote URL:
+  Download the template and deploy it locally:
 
   ```bash
+  # Download the template
+  curl -o /tmp/terraform-backend.yaml https://s3.amazonaws.com/cplive-core-ue2-public-cloudformation/aws-cloudformation-terraform-backend.yaml
+
+  # Deploy the template
   aws cloudformation deploy \
     --stack-name my-backend \
-    --template-url https://s3.amazonaws.com/cplive-core-ue2-public-cloudformation/aws-cloudformation-terraform-backend.yaml \
+    --template-file /tmp/terraform-backend.yaml \
     --capabilities CAPABILITY_NAMED_IAM \
     --no-fail-on-empty-changeset \
-    --parameters \
-      ParameterKey=GitHubOrg,ParameterValue=your-org
+    --parameter-overrides GitHubOrg=your-org
   ```
 
-  #### Option 2: Deploy from Local Template
+  #### Option 2: Clone Repo and Deploy
 
   Clone the repository and deploy the template from the local directory:
 
   ```bash
+  # Clone the repository
+  git clone git@github.com:cloudposse/aws-cloudformation-terraform-backend.git
+  cd aws-cloudformation-terraform-backend
+
+  # Deploy the template
   aws cloudformation deploy \
     --stack-name my-backend \
-    --template-body file://templates/aws-cloudformation-terraform-backend.yaml \
+    --template-file templates/aws-cloudformation-terraform-backend.yaml \
     --capabilities CAPABILITY_NAMED_IAM \
     --no-fail-on-empty-changeset \
-    --parameters \
-      ParameterKey=GitHubOrg,ParameterValue=your-org
+    --parameter-overrides GitHubOrg=your-org
   ```
 
   ## Usage with Atmos
@@ -95,14 +102,14 @@ usage: |-
       s3:
         bucket: my-backend-tfstate # Get this value from the StateBucketName output
         dynamodb_table: my-backend-tfstate # Get this value from the StateDynamoDBTableName output
-        role_arn: "" # Leave empty to use the current AWS credentials
+        role_arn: null # Set to null to use the current AWS credentials
         encrypt: true
         key: terraform.tfstate
         acl: bucket-owner-full-control
         region: us-east-1 # Ensure this matches the region where the template was deployed
     remote_state_backend:
       s3:
-        role_arn: "" # Leave empty to use the current AWS credentials
+        role_arn: null # Set to null to use the current AWS credentials
   ```
 
   ## Destroying the Template

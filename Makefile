@@ -24,13 +24,11 @@ validate:
 # See https://github.com/cloudposse-examples/infra-demo-atmos-pro
 deploy: $(STACK_NAME_FILE)
 	aws cloudformation deploy \
-	  --stack-name $(STACK_NAME_FILE) \
-	  --template-body file://templates/aws-cloudformation-terraform-backend.yaml \
+	  --stack-name $(STACK_NAME) \
+	  --template-file templates/aws-cloudformation-terraform-backend.yaml \
 	  --capabilities CAPABILITY_NAMED_IAM \
 	  --no-fail-on-empty-changeset \
-	  --parameters \
-	  	ParameterKey=GitHubOrg,ParameterValue=cloudposse-examples \
-	  	ParameterKey=CreateOIDCProvider,ParameterValue=false;
+	  --parameter-overrides GitHubOrg=cloudposse-examples CreateOIDCProvider=false
 
 # This deletes Cloud Posse's internal test stack
 # See https://github.com/cloudposse-examples/infra-demo-atmos-pro
