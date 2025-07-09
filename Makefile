@@ -1,16 +1,38 @@
+.PHONY: readme lint validate deploy delete init-stack-name
+
+STACK_NAME_FILE := .stack-name
+
+# Generate a unique stack name and save it
+init-stack-name:
+	@echo "Generating stack name..."
+	@echo "atmos-pro-$(shell date +%Y%m%d%H%M%S)" > $(STACK_NAME_FILE)
+	@echo "Saved stack name: $$(cat $(STACK_NAME_FILE))"
+
+# Read the stack name from the file
+STACK_NAME := $(shell cat $(STACK_NAME_FILE) 2>/dev/null)
+
 readme:
 	atmos docs generate readme
 
 lint:
-	cfn-lint templates/*.yaml -I
+	cfn-lint templates/aws-cloudformation-terraform-backend.yaml
 
-deploy:
-	aws cloudformation create-stack \
-		--stack-name atmos-pro-backend \
-		--template-body file://templates/atmos-pro.yaml \
-		--capabilities CAPABILITY_NAMED_IAM \
-		--parameters \
-			ParameterKey=StackName,ParameterValue=atmos-pro-backend \
-			ParameterKey=GitHubOrg,ParameterValue=cloudposse \
-			ParameterKey=GitHubRepo,ParameterValue=demo \
-			ParameterKey=CreateOIDCProvider,ParameterValue=false
+validate:
+	aws cloudformation validate-template --template-body file://templates/aws-cloudformation-terraform-backend.yaml
+
+# This deploys the cloudformation template to Cloud Posse's test organization.
+# See https://github.com/cloudposse-examples/infra-demo-atmos-pro
+deploy: $(STACK_NAME_FILE)
+	aws cloudformation deploy \
+	  --stack-name $(STACK_NAME_FILE) \
+	  --template-body file://templates/aws-cloudformation-terraform-backend.yaml \
+	  --capabilities CAPABILITY_NAMED_IAM \
+	  --no-fail-on-empty-changeset \
+	  --parameters \
+	  	ParameterKey=GitHubOrg,ParameterValue=cloudposse-examples \
+	  	ParameterKey=CreateOIDCProvider,ParameterValue=false;
+
+# This deletes Cloud Posse's internal test stack
+# See https://github.com/cloudposse-examples/infra-demo-atmos-pro
+delete:
+	aws cloudformation delete-stack --stack-name $(STACK_NAME_FILE)

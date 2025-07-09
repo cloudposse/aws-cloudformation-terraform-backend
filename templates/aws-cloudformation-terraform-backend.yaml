@@ -1,0 +1,297 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Cloud Posse Terraform AWS Backend'
+
+Parameters:
+  CreateStateBackend:
+    Type: String
+    Description: Set to 'true' to create state backend resources (S3 bucket, DynamoDB table), 'false' to skip
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  CreatePlanFileStorage:
+    Type: String
+    Description: Set to 'true' to create plan file storage resources (S3 bucket, DynamoDB table), 'false' to skip
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  CreateGitHubAccess:
+    Type: String
+    Description: Set to 'true' to create GitHub access resources (OIDC provider, IAM role), 'false' to skip
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  CreateOIDCProvider:
+    Type: String
+    Description: Set to 'true' to create the GitHub OIDC provider, 'false' to skip (if it already exists)
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  GitHubOrg:
+    Type: String
+    Description: Your GitHub organization or username (case sensitive)
+
+  GitHubRepo:
+    Type: String
+    Description: GitHub repository name. Set to `*` to allow all repositories
+    Default: "*"
+
+Conditions:
+  ShouldCreateStateBackend: !Equals [!Ref CreateStateBackend, 'true']
+  ShouldCreatePlanFileStorage: !Equals [!Ref CreatePlanFileStorage, 'true']
+  ShouldCreateGitHubAccess: !Equals [!Ref CreateGitHubAccess, 'true']
+  ShouldCreateOIDCProvider: !And 
+    - !Equals [!Ref CreateGitHubAccess, 'true']
+    - !Equals [!Ref CreateOIDCProvider, 'true']
+
+Resources:
+  # ============================================================================
+  # TERRAFORM BACKEND
+  # ============================================================================
+  
+  StateBucket:
+    Type: AWS::S3::Bucket
+    Condition: ShouldCreateStateBackend
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-tfstate'
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/s3'
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 90
+
+  StateBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: ShouldCreateStateBackend
+    Properties:
+      Bucket: !Ref StateBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyIncorrectEncryptionHeader
+            Effect: Deny
+            Principal:
+              AWS: '*'
+            Action: 's3:PutObject'
+            Resource: !Sub 'arn:aws:s3:::${StateBucket}/*'
+            Condition:
+              StringNotEquals:
+                's3:x-amz-server-side-encryption':
+                  - AES256
+                  - aws:kms
+          - Sid: DenyUnEncryptedObjectUploads
+            Effect: Deny
+            Principal:
+              AWS: '*'
+            Action: 's3:PutObject'
+            Resource: !Sub 'arn:aws:s3:::${StateBucket}/*'
+            Condition:
+              StringEquals:
+                's3:x-amz-server-side-encryption': ''
+          - Sid: EnforceTlsRequestsOnly
+            Effect: Deny
+            Principal:
+              AWS: '*'
+            Action: 's3:*'
+            Resource:
+              - !Sub 'arn:aws:s3:::${StateBucket}'
+              - !Sub 'arn:aws:s3:::${StateBucket}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+  StateDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Condition: ShouldCreateStateBackend
+    Properties:
+      TableName: !Sub '${AWS::StackName}-tfstate'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: LockID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: LockID
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+
+  # ============================================================================
+  # PLAN FILE STORAGE
+  # ============================================================================
+
+  PlanBucket:
+    Type: AWS::S3::Bucket
+    Condition: ShouldCreatePlanFileStorage
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-tfplan'
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: !If 
+                - ShouldCreateStateBackend
+                - aws:kms
+                - AES256
+              KMSMasterKeyID: !If 
+                - ShouldCreateStateBackend
+                - !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/s3'
+                - !Ref AWS::NoValue
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 90
+
+  PlanBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: ShouldCreatePlanFileStorage
+    Properties:
+      Bucket: !Ref PlanBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnforceTlsRequestsOnly
+            Effect: Deny
+            Principal:
+              AWS: '*'
+            Action: 's3:*'
+            Resource:
+              - !Sub 'arn:aws:s3:::${PlanBucket}'
+              - !Sub 'arn:aws:s3:::${PlanBucket}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+  PlanDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Condition: ShouldCreatePlanFileStorage
+    Properties:
+      TableName: !Sub '${AWS::StackName}-tfplan'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: pr
+          AttributeType: N
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: pr-createdAt-index
+          KeySchema:
+            - AttributeName: pr
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+
+  # ============================================================================
+  # GITHUB ACTIONS ACCESS
+  # ============================================================================
+
+  GitHubOIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: ShouldCreateOIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: 
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+
+  GitHubActionsRole:
+    Type: AWS::IAM::Role
+    Condition: ShouldCreateGitHubAccess
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-github-actions'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub 'arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringLike:
+                'token.actions.githubusercontent.com:sub': !Sub 'repo:${GitHubOrg}/${GitHubRepo}:*'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+
+Outputs:
+  AWSRegion:
+    Description: AWS region
+    Value: !Ref AWS::Region
+
+  GitHubActionsRoleARN:
+    Description: ARN of the IAM role for GitHub Actions
+    Value: !If 
+      - ShouldCreateGitHubAccess
+      - !GetAtt GitHubActionsRole.Arn
+      - ''
+
+  PlanBucketName:
+    Description: Name of the S3 bucket for plan files
+    Value: !If 
+      - ShouldCreatePlanFileStorage
+      - !Ref PlanBucket
+      - ''
+
+  PlanDynamoDBTableName:
+    Description: Name of the DynamoDB table for plan metadata
+    Value: !If 
+      - ShouldCreatePlanFileStorage
+      - !Ref PlanDynamoDBTable
+      - ''
+
+  StackName:
+    Description: Name of the stack
+    Value: !Ref AWS::StackName
+
+  StateBucketName:
+    Description: Name of the S3 bucket for state storage
+    Value: !If 
+      - ShouldCreateStateBackend
+      - !Ref StateBucket
+      - ''
+
+  StateDynamoDBTableName:
+    Description: Name of the DynamoDB table for state locking
+    Value: !If 
+      - ShouldCreateStateBackend
+      - !Ref StateDynamoDBTable
+      - ''

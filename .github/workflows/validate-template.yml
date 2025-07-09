@@ -1,10 +1,6 @@
 name: Validate CloudFormation Template
 
 on:
-  push:
-    paths:
-      - 'templates/*.yaml'
-      - '.github/workflows/validate-template.yml'
   pull_request:
     paths:
       - 'templates/*.yaml'
@@ -16,13 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+      - name: Setup CloudFormation Linter
+        uses: scottbrenner/cfn-lint-action@v2
 
-      - name: Validate CloudFormation template
-        run: aws cloudformation validate-template --template-body file://templates/atmos-pro.yaml 
+      - name: Lint CloudFormation templates
+        run: |
+          cfn-lint --version
+          cfn-lint -t templates/*.yaml

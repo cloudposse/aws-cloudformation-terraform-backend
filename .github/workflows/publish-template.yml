@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'templates/*.yaml'
   workflow_dispatch:
 
 permissions:
@@ -22,49 +20,47 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+          role-to-assume: ${{ vars.AWS_CLOUDFORMATION_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION}}
 
       - name: Upload template to S3
         run: |
-          aws s3 cp templates/atmos-pro.yaml s3://${{ secrets.TEMPLATE_BUCKET }}/atmos-pro/atmos-pro.yaml \
+          aws s3 cp templates/aws-cloudformation-terraform-backend.yaml s3://${{ vars.CLOUDFORMATION_TEMPLATE_BUCKET }}/${{ github.event.repository.name }}.yaml \
             --content-type 'application/x-yaml' \
             --cache-control 'no-cache' \
-            --acl public-read
+            --acl public-read \
+            --sse AES256
 
       - name: Get template URL
         id: template-url
         run: |
-          echo "url=https://${{ secrets.TEMPLATE_BUCKET }}.s3.amazonaws.com/atmos-pro/atmos-pro.yaml" >> $GITHUB_OUTPUT
+          echo "url=https://${{ vars.CLOUDFORMATION_TEMPLATE_BUCKET }}.s3.amazonaws.com/${{ github.event.repository.name }}.yaml" >> $GITHUB_OUTPUT
 
       - name: Create CloudFormation Console URL
         id: console-url
         run: |
-          TEMPLATE_URL="https://${{ secrets.TEMPLATE_BUCKET }}.s3.amazonaws.com/atmos-pro/atmos-pro.yaml"
+          TEMPLATE_URL="https://${{ vars.CLOUDFORMATION_TEMPLATE_BUCKET }}.s3.amazonaws.com/${{ github.event.repository.name }}.yaml"
           ENCODED_URL=$(echo -n "$TEMPLATE_URL" | jq -sRr @uri)
-          echo "url=https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=$ENCODED_URL" >> $GITHUB_OUTPUT
+          echo "url=https://console.aws.amazon.com/cloudformation/home?region=us-east-1/#/stacks/create/review?templateURL=$ENCODED_URL" >> $GITHUB_OUTPUT
+
+      - name: Report Result to GitHub Summary
+        run: |
+          echo "## 🚀 CloudFormation Template Published Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Template URL" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.template-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Launch Stack" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.console-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: peter-evans/create-or-update-comment@v4
         with:
-          script: |
-            const templateUrl = '${{ steps.template-url.outputs.url }}';
-            const consoleUrl = '${{ steps.console-url.outputs.url }}';
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `CloudFormation template published successfully!\n\n` +
-                    `## 🚀 Deploy Complete Infrastructure\n` +
-                    `- Template URL: ${templateUrl}\n` +
-                    `- Launch Stack: ${consoleUrl}\n\n` +
-                    `This template deploys all Atmos Pro infrastructure in a single stack:\n` +
-                    `- S3 bucket for Terraform state storage\n` +
-                    `- KMS key for encryption\n` +
-                    `- DynamoDB table for state locking\n` +
-                    `- GitHub OIDC provider\n` +
-                    `- GitHub Actions IAM role\n` +
-                    `- All security policies and configurations`
-            }); 
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            CloudFormation template published successfully!
+
+            ## 🚀 Deploy Complete Infrastructure
+            - Template URL: ${{ steps.template-url.outputs.url }}
+            - Launch Stack: ${{ steps.console-url.outputs.url }}
