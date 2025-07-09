@@ -40,24 +40,33 @@ Deploy the complete Terraform backend infrastructure in a single CloudFormation 
 
 ### Or deploy via AWS CLI
 
-#### Option 1: Deploy from Remote Template
+#### Option 1: Download from S3 and Deploy
 
-Deploy the template from the remote URL:
+Download the template and deploy it locally:
 
 ```bash
+# Download the template
+curl -o /tmp/terraform-backend.yaml https://s3.amazonaws.com/cplive-core-ue2-public-cloudformation/aws-cloudformation-terraform-backend.yaml
+
+# Deploy the template
 aws cloudformation deploy \
   --stack-name my-backend \
-  --template-url https://s3.amazonaws.com/cplive-core-ue2-public-cloudformation/aws-cloudformation-terraform-backend.yaml \
+  --template-file /tmp/terraform-backend.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
   --no-fail-on-empty-changeset \
   --parameter-overrides GitHubOrg=your-org
 ```
 
-#### Option 2: Deploy from Local Template
+#### Option 2: Clone Repo and Deploy
 
 Clone the repository and deploy the template from the local directory:
 
 ```bash
+# Clone the repository
+git clone git@github.com:cloudposse/aws-cloudformation-terraform-backend.git
+cd aws-cloudformation-terraform-backend
+
+# Deploy the template
 aws cloudformation deploy \
   --stack-name my-backend \
   --template-file templates/aws-cloudformation-terraform-backend.yaml \
