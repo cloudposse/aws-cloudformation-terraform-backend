@@ -50,8 +50,7 @@ aws cloudformation deploy \
   --template-url https://s3.amazonaws.com/cplive-core-ue2-public-cloudformation/aws-cloudformation-terraform-backend.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
   --no-fail-on-empty-changeset \
-  --parameters \
-    ParameterKey=GitHubOrg,ParameterValue=your-org
+  --parameter-overrides GitHubOrg=your-org
 ```
 
 #### Option 2: Deploy from Local Template
@@ -61,11 +60,10 @@ Clone the repository and deploy the template from the local directory:
 ```bash
 aws cloudformation deploy \
   --stack-name my-backend \
-  --template-body file://templates/aws-cloudformation-terraform-backend.yaml \
+  --template-file templates/aws-cloudformation-terraform-backend.yaml \
   --capabilities CAPABILITY_NAMED_IAM \
   --no-fail-on-empty-changeset \
-  --parameters \
-    ParameterKey=GitHubOrg,ParameterValue=your-org
+  --parameter-overrides GitHubOrg=your-org
 ```
 
 ## Usage with Atmos
