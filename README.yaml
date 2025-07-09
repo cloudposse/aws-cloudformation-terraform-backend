@@ -102,14 +102,14 @@ usage: |-
       s3:
         bucket: my-backend-tfstate # Get this value from the StateBucketName output
         dynamodb_table: my-backend-tfstate # Get this value from the StateDynamoDBTableName output
-        role_arn: "" # Leave empty to use the current AWS credentials
+        role_arn: null # Set to null to use the current AWS credentials
         encrypt: true
         key: terraform.tfstate
         acl: bucket-owner-full-control
         region: us-east-1 # Ensure this matches the region where the template was deployed
     remote_state_backend:
       s3:
-        role_arn: "" # Leave empty to use the current AWS credentials
+        role_arn: null # Set to null to use the current AWS credentials
   ```
 
   ## Destroying the Template
